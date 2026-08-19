@@ -1,8 +1,10 @@
 # Base class for plant components in Hercules.
 
+import copy
 from pathlib import Path
 from typing import ClassVar
 
+import numpy as np
 from hercules.utilities import setup_logging
 
 
@@ -164,3 +166,18 @@ class ComponentBase:
     def step(self, h_dict):
         """Raise error if step is called on the abstract base class."""
         raise NotImplementedError("Components must implement the step() method")
+
+    def compute_next_time_step_limits(self):
+        """
+        Compute the estimated power available from the thermal component at the next time step.
+        Uses a copied state to call _control() so that the actual state of the component will not
+        be updated.
+        """
+
+        _initial_state = copy.deepcopy(self.__dict__)
+        low_power_next = self._control(-np.inf)
+        self.__dict__.update(_initial_state)
+        high_power_next = self._control(np.inf)
+        self.__dict__.update(_initial_state)
+
+        return [low_power_next, high_power_next]
