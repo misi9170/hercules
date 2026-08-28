@@ -358,7 +358,33 @@ class ThermalComponentBase(ComponentBase):
         h_dict[self.component_name]["n_hot_starts"] = self.n_hot_starts
         h_dict[self.component_name]["n_warm_starts"] = self.n_warm_starts
         h_dict[self.component_name]["n_cold_starts"] = self.n_cold_starts
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min
+        h_dict[self.component_name]["power_max_next"] = power_max
         return h_dict
+
+    def get_power_bounds(self, delta_t: float) -> tuple[float, float]:
+        """Return the state-dependent power envelope over ``delta_t`` seconds in kW.
+
+        Startup and shutdown are command-driven transitions, so their bounds
+        describe the nonnegative output available in the current transition.
+        """
+        if self.state == self.STATES.ON:
+            power_min = max(self.P_min, self.power_output - self.ramp_rate * delta_t)
+            power_max = min(self.P_max, self.power_output + self.ramp_rate * delta_t)
+            return power_min, power_max
+        if self.state == self.STATES.STOPPING:
+            return 0.0, max(0.0, self.power_output - self.ramp_rate * delta_t)
+        if self._is_off():
+            return 0.0, 0.0
+
+        readying_time = {
+            self.STATES.HOT_STARTING: self.hot_readying_time,
+            self.STATES.WARM_STARTING: self.warm_readying_time,
+            self.STATES.COLD_STARTING: self.cold_readying_time,
+        }[self.state]
+        startup_power = (self.time_in_state + delta_t - readying_time) * self.run_up_rate
+        return 0.0, min(self.P_max, max(0.0, startup_power))
 
     def step(self, h_dict):
         """Advance the thermal component simulation by one time step.
@@ -417,6 +443,9 @@ class ThermalComponentBase(ComponentBase):
         h_dict[self.component_name]["n_hot_starts"] = self.n_hot_starts
         h_dict[self.component_name]["n_warm_starts"] = self.n_warm_starts
         h_dict[self.component_name]["n_cold_starts"] = self.n_cold_starts
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min
+        h_dict[self.component_name]["power_max_next"] = power_max
 
         return h_dict
 
@@ -647,15 +676,8 @@ class ThermalComponentBase(ComponentBase):
         Returns:
             float: Constrained power output in kW.
         """
-        # Apply power limits
-        P_constrained = np.clip(power_setpoint, self.P_min, self.P_max)
-
-        # Apply ramp rate constraints
-        max_ramp_up = self.power_output + self.ramp_rate * self.dt
-        max_ramp_down = self.power_output - self.ramp_rate * self.dt
-        P_constrained = np.clip(P_constrained, max_ramp_down, max_ramp_up)
-
-        return P_constrained
+        power_min, power_max = self.get_power_bounds(self.dt)
+        return np.clip(power_setpoint, power_min, power_max)
 
     def calculate_efficiency(self, power_output):
         """Calculate HHV net efficiency based on current power output and state.

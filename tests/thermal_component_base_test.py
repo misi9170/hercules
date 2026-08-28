@@ -224,6 +224,38 @@ def test_power_setpoint_in_normal_operation():
     assert out["thermal_component"]["state"] == ThermalComponentBase.STATES.STOPPING
 
 
+def test_get_power_bounds_on_state():
+    h_dict = copy.deepcopy(h_dict_thermal_component)
+    h_dict["thermal_component"]["initial_conditions"]["power"] = 500
+    h_dict["thermal_component"]["ramp_rate_fraction"] = 6
+    tcb = ThermalComponentBase(h_dict, "thermal_component")
+
+    power_min, power_max = tcb.get_power_bounds(tcb.dt)
+    assert (power_min, power_max) == (400, 600)
+
+    h_dict["thermal_component"]["power_setpoint"] = 1000
+    out = tcb.step(copy.deepcopy(h_dict))
+    assert out["thermal_component"]["power"] == power_max
+    assert out["thermal_component"]["power_min_next"] == 500
+    assert out["thermal_component"]["power_max_next"] == 700
+
+    # Test in off state
+    h_dict["thermal_component"]["initial_conditions"]["power"] = 0
+    tcb = ThermalComponentBase(h_dict, "thermal_component")
+    power_min, power_max = tcb.get_power_bounds(tcb.dt)
+    assert (power_min, power_max) == (0, 0) # Off state and not able to transition
+
+    # Test in starting state
+    tcb.state = tcb.STATES.HOT_STARTING
+    power_min, power_max = tcb.get_power_bounds(tcb.dt)
+    assert (power_min, power_max) == (0, 0) # Not yet in state long enough
+
+    # Simulate that the component has been in the starting state long enough
+    tcb.time_in_state = tcb.hot_readying_time
+    power_min, power_max = tcb.get_power_bounds(tcb.dt)
+    assert (power_min, power_max) == (0, tcb.run_up_rate * tcb.dt)  # Now able to provide power
+
+
 def test_transition_on_to_off():
     """Test transition from on state to off state with ramp down and min_up_time."""
     h_dict = copy.deepcopy(h_dict_thermal_component)
