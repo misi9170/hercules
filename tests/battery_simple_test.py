@@ -102,6 +102,22 @@ def test_SB_control_energy_constraint(SB: BatterySimple):
     assert out["battery"]["reject"] == 1000
 
 
+def test_SB_get_power_bounds(SB: BatterySimple):
+    SB.P_avail = np.inf
+    power_min, power_max = SB.get_power_bounds(SB.dt)
+    assert power_min == SB.P_min
+    assert power_max == SB.P_max
+
+    SB.E = SB.E_max - 500
+    SB.x[0, 0] = SB.E
+    _, power_max = SB.get_power_bounds(SB.dt)
+    assert power_max == 500
+
+    out = SB.step(step_inputs(P_avail=np.inf, P_signal=0))
+    assert out["battery"]["power_min_next"] == SB.P_min
+    assert out["battery"]["power_max_next"] == 500
+
+
 def test_SB_step(SB: BatterySimple):
     SB.step(step_inputs(P_avail=1e3, P_signal=1e3))
     assert_almost_equal(SB.E, 144001000, decimal=-2)

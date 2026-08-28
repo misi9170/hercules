@@ -178,3 +178,17 @@ def test_control():
     step_inputs = {"step": 0, "solar_farm": {"power_setpoint": power_setpoint}}
     SPS.step(step_inputs)
     assert_almost_equal(SPS.power, power_setpoint, decimal=8)
+
+
+def test_get_power_bounds():
+    ac_max = h_dict_solar_pvwatts["solar_farm"]["system_capacity"] * 1.0
+    test_h_dict = copy.deepcopy(h_dict_solar_pvwatts)
+    SPS = SolarPySAMPVWatts(test_h_dict, "solar_farm")
+
+    power_min, power_max = SPS.get_power_bounds(SPS.dt)
+    assert power_min == 0
+    assert power_max == ac_max
+
+    out = SPS.step({"step": 0, "solar_farm": {"power_setpoint": 100}})
+    assert out["solar_farm"]["power_min_next"] == 0
+    assert out["solar_farm"]["power_max_next"] == ac_max

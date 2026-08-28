@@ -252,6 +252,9 @@ class SolarPySAMBase(ComponentBase):
         h_dict[self.component_name]["power"] = self.power
         h_dict[self.component_name]["ac_power_available"] = self.ac_power_available
         h_dict[self.component_name]["dc_power_available"] = self.dc_power_available
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min
+        h_dict[self.component_name]["power_max_next"] = power_max
         h_dict[self.component_name]["dni"] = self.dni
         h_dict[self.component_name]["poa"] = self.poa
         h_dict[self.component_name]["aoi"] = self.aoi
@@ -259,6 +262,14 @@ class SolarPySAMBase(ComponentBase):
         h_dict[self.component_name]["starttime_utc"] = self.starttime_utc
 
         return h_dict
+
+    def get_power_bounds(self, delta_t: float) -> tuple[float, float]:
+        """Return the AC curtailment envelope for the current solar state in kW."""
+        ac_max = (
+            self.model_params["SystemDesign"]["system_capacity"]
+            * self.model_params["SystemDesign"]["dc_ac_ratio"]
+        )
+        return 0.0, ac_max
 
     def control(self, power_setpoint):
         """Controls the PV plant power output to meet a specified setpoint.
@@ -298,6 +309,9 @@ class SolarPySAMBase(ComponentBase):
         h_dict[self.component_name]["power"] = self.power
         h_dict[self.component_name]["ac_power_available"] = self.ac_power_available
         h_dict[self.component_name]["dc_power_available"] = self.dc_power_available
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min
+        h_dict[self.component_name]["power_max_next"] = power_max
         h_dict[self.component_name]["dni"] = self.dni
         h_dict[self.component_name]["poa"] = self.poa
         h_dict[self.component_name]["aoi"] = self.aoi

@@ -208,7 +208,7 @@ class BatterySimple(ComponentBase):
         self.build_SS()
         self.x = np.array(
             [[initial_conditions["SOC"] * self.internal_energy_capacity * 3600]],
-            dtype=hercules_float_type,
+            #dtype=hercules_float_type, # Causes some odd numerical behavior!
         )
         self.y = None
 
@@ -298,9 +298,43 @@ class BatterySimple(ComponentBase):
         h_dict[self.component_name]["usage_in_time"] = self.time_usage_perc
         h_dict[self.component_name]["usage_in_cycles"] = self.cycle_usage_perc
         h_dict[self.component_name]["total_cycles"] = self.total_cycle_usage
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min
+        h_dict[self.component_name]["power_max_next"] = power_max
 
         # Return the updated dictionary
         return h_dict
+
+    def get_power_bounds(self, delta_t):
+        """Return intrinsic charge/discharge bounds over ``delta_t`` seconds in kW.
+
+        Positive power charges the battery. Plant-level available generation is
+        intentionally excluded; ``control`` applies that separate constraint.
+        """
+        # TODO remove ramp rate constraints because they are never used?
+
+        # Upper constraints [kW]
+        # c_hi1 = (self.E_max - self.E) / self.dt  # energy
+        c_hi1 = self.SS_input_function_inverse((self.E_max - self.x[0, 0]) / delta_t)
+        c_hi2 = self.P_max  # power
+        c_hi3 = self.R_max * delta_t + self.P_charge  # ramp rate
+        c_hi4 = self.P_avail
+
+        # Lower constraints [kW]
+        # c_lo1 = (self.E_min - self.E) / self.dt  # energy
+        c_lo1 = self.SS_input_function_inverse((self.E_min - self.x[0, 0]) / delta_t)
+        c_lo2 = self.P_min  # power
+        c_lo3 = self.R_min * delta_t + self.P_charge  # ramp rate
+
+        # High constraint is the most restrictive of the high constraints
+        c_hi = np.min([c_hi1, c_hi2, c_hi3, c_hi4])
+        c_hi = np.max([c_hi, 0])
+
+        # Low constraint is the most restrictive of the low constraints
+        c_lo = np.max([c_lo1, c_lo2, c_lo3])
+        c_lo = np.min([c_lo, 0])
+
+        return c_lo, c_hi
 
     def control(self, P_avail, power_setpoint):
         """Apply battery operational constraints to requested power.
@@ -319,29 +353,9 @@ class BatterySimple(ComponentBase):
                   power cannot be absorbed, negative when required power unavailable)
         """
 
-        # TODO remove ramp rate constraints because they are never used?
 
-        # Upper constraints [kW]
-        # c_hi1 = (self.E_max - self.E) / self.dt  # energy
-        c_hi1 = self.SS_input_function_inverse((self.E_max - self.x[0, 0]) / self.dt)
-        c_hi2 = self.P_max  # power
-        c_hi3 = self.R_max * self.dt + self.P_charge  # ramp rate
-        c_hi4 = P_avail
-
-        # Lower constraints [kW]
-        # c_lo1 = (self.E_min - self.E) / self.dt  # energy
-        c_lo1 = self.SS_input_function_inverse((self.E_min - self.x[0, 0]) / self.dt)
-        c_lo2 = self.P_min  # power
-        c_lo3 = self.R_min * self.dt + self.P_charge  # ramp rate
-
-        # High constraint is the most restrictive of the high constraints
-        c_hi = np.min([c_hi1, c_hi2, c_hi3, c_hi4])
-        c_hi = np.max([c_hi, 0])
-
-        # Low constraint is the most restrictive of the low constraints
-        c_lo = np.max([c_lo1, c_lo2, c_lo3])
-        c_lo = np.min([c_lo, 0])
-
+        self.P_avail = P_avail
+        c_lo, c_hi = self.get_power_bounds(self.dt)
         # TODO: force low constraint to be no higher than lowest high constraint
         if (power_setpoint >= c_lo) & (power_setpoint <= c_hi):
             P_charge = power_setpoint
