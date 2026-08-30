@@ -235,6 +235,11 @@ class BatterySimple(ComponentBase):
         # Add what we want later
         h_dict[self.component_name]["power"] = 0
         h_dict[self.component_name]["soc"] = self.SOC
+        self.P_avail = np.inf # On initialization, does not know available---assume infinite.
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min
+        h_dict[self.component_name]["power_max_next"] = power_max
+
 
         return h_dict
 
