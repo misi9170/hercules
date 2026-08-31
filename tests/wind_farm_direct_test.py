@@ -72,6 +72,10 @@ def test_wind_farm_direct_step():
         result["wind_farm"]["wind_speeds_background"],
     )
 
+    # Check next predictions
+    assert result["wind_farm"]["power_min_next"] == 0.0
+    assert result["wind_farm"]["power_max_next"] > result["wind_farm"]["power"]
+
 
 def test_wind_farm_direct_no_wake_deficits_over_time():
     """Test that wake deficits remain zero throughout simulation."""
@@ -204,3 +208,21 @@ def test_wind_farm_raises_on_nan_in_wind_input():
     finally:
         if os.path.exists(temp_wind_file):
             os.unlink(temp_wind_file)
+
+
+def test_get_power_bounds():
+    """Test that get_power_bounds returns correct minimum and maximum power."""
+    wind_sim = WindFarm(h_dict_wind_direct, "wind_farm")
+    wind_sim.wind_speeds_withwakes = 12.0 * np.ones_like(wind_sim.wind_speeds_withwakes)
+    delta_t = wind_sim.dt
+    power_min, power_max = wind_sim.get_power_bounds(delta_t)
+
+    # Minimum power should be zero for all turbines
+    assert np.allclose(power_min, 0.0)
+
+    # Maximum power should be greater than current power for all turbines
+    assert np.all(power_max >= wind_sim.turbine_powers)
+
+    # Longer dt should allow more power
+    _, power_max_longer_dt = wind_sim.get_power_bounds(10)
+    assert np.all(power_max_longer_dt >= power_max)

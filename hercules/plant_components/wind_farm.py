@@ -589,6 +589,9 @@ class WindFarm(ComponentBase):
         h_dict[self.component_name]["wind_speed_mean_background"] = self.ws_mat_mean[0]
         h_dict[self.component_name]["turbine_powers"] = self.turbine_powers
         h_dict[self.component_name]["power"] = np.sum(self.turbine_powers)
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min.sum()
+        h_dict[self.component_name]["power_max_next"] = power_max.sum()
 
         # Log the start time UTC if available
         if hasattr(self, "starttime_utc"):
@@ -660,6 +663,56 @@ class WindFarm(ComponentBase):
         self.turbine_power_setpoints_buffer_idx = (
             self.turbine_power_setpoints_buffer_idx + 1
         ) % self.floris_update_steps
+
+    def get_power_bounds(self, delta_t):
+        """
+        Return the upper and lower bounds on power available for the wind farm over the given time
+        step delta_t.
+
+        Note: this method requires reinstantiating the turbine objects. This is somewhat
+        expensive, and slows the simulation down approximately 30%.
+        """
+        if self.use_vectorized_turbines:
+            turb_array_delta_t = self.turbine_array.__class__(
+                self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes
+            )
+            turb_array_delta_t.prev_powers = self.turbine_array.prev_powers.copy()
+            powers_maximum = turb_array_delta_t.step(
+                self.wind_speeds_withwakes,
+                turb_array_delta_t.get_rated_power() * np.ones_like(turb_array_delta_t.n_turbines),
+            )
+
+            turb_array_delta_t = self.turbine_array.__class__(
+                self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes
+            )
+            turb_array_delta_t.prev_powers = self.turbine_array.prev_powers.copy()
+            powers_minimum = turb_array_delta_t.step(
+                self.wind_speeds_withwakes, np.zeros_like(turb_array_delta_t.n_turbines)
+            )
+        else:
+            # Original loop-based calculation
+            powers_maximum = np.zeros(self.n_turbines)
+            powers_minimum = np.zeros(self.n_turbines)
+            for t_idx, turb in enumerate(self.turbine_array):
+                turb_delta_t = turb.__class__(
+                    self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes[t_idx]
+                )
+                turb_delta_t.prev_power = turb.prev_power
+                powers_maximum[t_idx] = turb_delta_t.step(
+                    self.wind_speeds_withwakes[t_idx],
+                    power_setpoint=turb.get_rated_power(),
+                )
+
+                turb_delta_t = turb.__class__(
+                    self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes[t_idx]
+                )
+                turb_delta_t.prev_power = turb.prev_power
+                powers_minimum[t_idx] = turb_delta_t.step(
+                    self.wind_speeds_withwakes[t_idx],
+                    power_setpoint=0.0,
+                )
+
+        return powers_minimum, powers_maximum
 
     def step(self, h_dict):
         """Execute one simulation step for the wind farm.
@@ -742,6 +795,9 @@ class WindFarm(ComponentBase):
         )
         h_dict[self.component_name]["wind_speeds_withwakes"] = self.wind_speeds_withwakes
         h_dict[self.component_name]["wind_speeds_background"] = self.wind_speeds_background
+        power_min, power_max = self.get_power_bounds(self.dt)
+        h_dict[self.component_name]["power_min_next"] = power_min.sum()
+        h_dict[self.component_name]["power_max_next"] = power_max.sum()
 
         return h_dict
 
