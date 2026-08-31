@@ -670,43 +670,51 @@ class WindFarm(ComponentBase):
         Return the upper and lower bounds on power available for the wind farm over the given time
         step delta_t.
 
-        Note: this method requires copying the turbine state and resetting it. This is somewhat
-        expensive, and slows the simulation down approximately 20%.
+        Note: this method requires reinstantiating the turbine objects. This is somewhat
+        expensive, and slows the simulation down approximately 30%.
         """
-        if delta_t != self.dt:
-            raise NotImplementedError("get_power_bounds for variable delta_t is not yet available.")
-
         if self.use_vectorized_turbines:
-            _turb_state = copy.deepcopy(self.turbine_array.__dict__)
-            powers_maximum = self.turbine_array.step(
-                self.wind_speeds_withwakes,
-                self.turbine_array.get_rated_power() * np.ones_like(self.turbine_array.n_turbines)
+            turb_array_delta_t = self.turbine_array.__class__(
+                self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes
             )
-            self.turbine_array.__dict__.update(_turb_state)
-            powers_minimum = self.turbine_array.step(
+            turb_array_delta_t.prev_powers = self.turbine_array.prev_powers.copy()
+            powers_maximum = turb_array_delta_t.step(
                 self.wind_speeds_withwakes,
-                np.zeros_like(self.turbine_array.n_turbines)
+                turb_array_delta_t.get_rated_power() * np.ones_like(turb_array_delta_t.n_turbines)
             )
-            self.turbine_array.__dict__.update(_turb_state)
+
+            turb_array_delta_t = self.turbine_array.__class__(
+                self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes
+            )
+            turb_array_delta_t.prev_powers = self.turbine_array.prev_powers.copy()
+            powers_minimum = turb_array_delta_t.step(
+                self.wind_speeds_withwakes,
+                np.zeros_like(turb_array_delta_t.n_turbines)
+            )
         else:
             # Original loop-based calculation
             powers_maximum = np.zeros(self.n_turbines)
             powers_minimum = np.zeros(self.n_turbines)
             for t_idx, turb in enumerate(self.turbine_array):
-                _turb_state = copy.deepcopy(turb.__dict__)
-                powers_maximum[t_idx] = turb.step(
+                turb_delta_t = turb.__class__(
+                    self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes[t_idx]
+                )
+                turb_delta_t.prev_power = turb.prev_power
+                powers_maximum[t_idx] = turb_delta_t.step(
                     self.wind_speeds_withwakes[t_idx],
                     power_setpoint=turb.get_rated_power(),
                 )
-                turb.__dict__.update(_turb_state)
-                powers_minimum[t_idx] = turb.step(
+
+                turb_delta_t = turb.__class__(
+                    self.turbine_dict, delta_t, self.fmodel, self.wind_speeds_withwakes[t_idx]
+                )
+                turb_delta_t.prev_power = turb.prev_power
+                powers_minimum[t_idx] = turb_delta_t.step(
                     self.wind_speeds_withwakes[t_idx],
                     power_setpoint=0.0,
                 )
-                turb.__dict__.update(_turb_state)
 
         return powers_minimum, powers_maximum
-        # return 0.0, 0.0
 
     def step(self, h_dict):
         """Execute one simulation step for the wind farm.
