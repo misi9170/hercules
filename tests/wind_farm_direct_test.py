@@ -76,6 +76,7 @@ def test_wind_farm_direct_step():
     assert result["wind_farm"]["power_min_next"] == 0.0
     assert result["wind_farm"]["power_max_next"] > result["wind_farm"]["power"]
 
+
 def test_wind_farm_direct_no_wake_deficits_over_time():
     """Test that wake deficits remain zero throughout simulation."""
     wind_sim = WindFarm(h_dict_wind_direct, "wind_farm")
@@ -207,6 +208,7 @@ def test_wind_farm_raises_on_nan_in_wind_input():
     finally:
         if os.path.exists(temp_wind_file):
             os.unlink(temp_wind_file)
+
 
 def test_get_power_bounds():
     """Test that get_power_bounds returns correct minimum and maximum power."""

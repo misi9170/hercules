@@ -208,7 +208,7 @@ class BatterySimple(ComponentBase):
         self.build_SS()
         self.x = np.array(
             [[initial_conditions["SOC"] * self.internal_energy_capacity * 3600]],
-            #dtype=hercules_float_type, # Causes some odd numerical behavior!
+            # dtype=hercules_float_type, # Causes some odd numerical behavior!
         )
         self.y = None
 
@@ -352,7 +352,6 @@ class BatterySimple(ComponentBase):
                 - P_reject: Rejected power due to constraints in kW (positive when
                   power cannot be absorbed, negative when required power unavailable)
         """
-
 
         self.P_avail = P_avail
         c_lo, c_hi = self.get_power_bounds(self.dt)

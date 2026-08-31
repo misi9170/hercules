@@ -1,5 +1,4 @@
 # Unified wind farm model for Hercules supporting multiple wake modeling strategies.
-import copy
 
 import numpy as np
 import pandas as pd
@@ -680,7 +679,7 @@ class WindFarm(ComponentBase):
             turb_array_delta_t.prev_powers = self.turbine_array.prev_powers.copy()
             powers_maximum = turb_array_delta_t.step(
                 self.wind_speeds_withwakes,
-                turb_array_delta_t.get_rated_power() * np.ones_like(turb_array_delta_t.n_turbines)
+                turb_array_delta_t.get_rated_power() * np.ones_like(turb_array_delta_t.n_turbines),
             )
 
             turb_array_delta_t = self.turbine_array.__class__(
@@ -688,8 +687,7 @@ class WindFarm(ComponentBase):
             )
             turb_array_delta_t.prev_powers = self.turbine_array.prev_powers.copy()
             powers_minimum = turb_array_delta_t.step(
-                self.wind_speeds_withwakes,
-                np.zeros_like(turb_array_delta_t.n_turbines)
+                self.wind_speeds_withwakes, np.zeros_like(turb_array_delta_t.n_turbines)
             )
         else:
             # Original loop-based calculation

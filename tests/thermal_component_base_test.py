@@ -243,12 +243,12 @@ def test_get_power_bounds_on_state():
     h_dict["thermal_component"]["initial_conditions"]["power"] = 0
     tcb = ThermalComponentBase(h_dict, "thermal_component")
     power_min, power_max = tcb.get_power_bounds(tcb.dt)
-    assert (power_min, power_max) == (0, 0) # Off state and not able to transition
+    assert (power_min, power_max) == (0, 0)  # Off state and not able to transition
 
     # Test in starting state
     tcb.state = tcb.STATES.HOT_STARTING
     power_min, power_max = tcb.get_power_bounds(tcb.dt)
-    assert (power_min, power_max) == (0, 0) # Not yet in state long enough
+    assert (power_min, power_max) == (0, 0)  # Not yet in state long enough
 
     # Try with long delta_t (will result in going 10s into hot starting process)
     power_min, power_max = tcb.get_power_bounds(tcb.hot_readying_time)
