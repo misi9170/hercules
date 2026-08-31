@@ -72,6 +72,9 @@ def test_wind_farm_direct_step():
         result["wind_farm"]["wind_speeds_background"],
     )
 
+    # Check next predictions
+    assert result["wind_farm"]["power_min_next"] == 0.0
+    assert result["wind_farm"]["power_max_next"] > result["wind_farm"]["power"]
 
 def test_wind_farm_direct_no_wake_deficits_over_time():
     """Test that wake deficits remain zero throughout simulation."""
