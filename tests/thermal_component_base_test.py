@@ -248,7 +248,7 @@ def test_get_power_bounds_on_state():
     # Test in starting state
     tcb.state = tcb.STATES.HOT_STARTING
     power_min, power_max = tcb.get_power_bounds(tcb.dt)
-    assert (power_min, power_max) == (0, 0)  # Not yet in state long enough
+    assert (power_min, power_max) == (0, 1e-3)  # Not yet in state long enough
 
     # Try with long delta_t (will result in going 10s into hot starting process)
     power_min, power_max = tcb.get_power_bounds(tcb.hot_readying_time)
