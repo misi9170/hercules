@@ -391,7 +391,10 @@ class ThermalComponentBase(ComponentBase):
             self.STATES.COLD_STARTING: self.cold_readying_time,
         }[self.state]
         startup_power = (self.time_in_state + delta_t - readying_time) * self.run_up_rate
-        return 0.0, min(self.P_max, max(1e-3, startup_power))  # Max power needs to be >0
+        return (
+            min(self.P_max, max(1e-3, startup_power)), # Don't allow aborting startup
+            min(self.P_max, max(1e-3, startup_power))  # Max power needs to be >0
+        )
 
     def step(self, h_dict):
         """Advance the thermal component simulation by one time step.
