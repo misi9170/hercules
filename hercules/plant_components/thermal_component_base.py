@@ -370,7 +370,11 @@ class ThermalComponentBase(ComponentBase):
         describe the nonnegative output available in the current transition.
         """
         if self.state == self.STATES.ON:
-            power_min = max(self.P_min, self.power_output - self.ramp_rate * delta_t)
+            can_shutdown = self.time_in_state >= self.min_up_time
+            power_min = max(
+                min(self.P_min, self.power_output - self.ramp_rate * delta_t),
+                self.power_output - self.ramp_rate * delta_t,
+            )
             power_max = min(self.P_max, self.power_output + self.ramp_rate * delta_t)
             return power_min, power_max
         if self.state == self.STATES.STOPPING:
