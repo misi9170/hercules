@@ -372,7 +372,7 @@ class ThermalComponentBase(ComponentBase):
         if self.state == self.STATES.ON:
             can_shutdown = self.time_in_state >= self.min_up_time
             power_min = max(
-                min(self.P_min, self.power_output - self.ramp_rate * delta_t),
+                min(self.P_min, self.power_output - self.ramp_rate * delta_t * can_shutdown),
                 self.power_output - self.ramp_rate * delta_t,
             )
             power_max = min(self.P_max, self.power_output + self.ramp_rate * delta_t)
