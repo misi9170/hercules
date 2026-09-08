@@ -253,14 +253,16 @@ def test_get_power_bounds_on_state():
     # Try with long delta_t (will result in going 10s into hot starting process)
     power_min, power_max = tcb.get_power_bounds(tcb.hot_readying_time)
     assert (power_min, power_max) == (
-        tcb.run_up_rate * tcb.time_in_state, tcb.run_up_rate * tcb.time_in_state
+        tcb.run_up_rate * tcb.time_in_state,
+        tcb.run_up_rate * tcb.time_in_state,
     )
 
     # Simulate that the component has been in the starting state long enough
     tcb.time_in_state = tcb.hot_readying_time
     power_min, power_max = tcb.get_power_bounds(tcb.dt)
     assert (power_min, power_max) == (
-        tcb.run_up_rate * tcb.dt, tcb.run_up_rate * tcb.dt
+        tcb.run_up_rate * tcb.dt,
+        tcb.run_up_rate * tcb.dt,
     )  # Now able to provide power
 
 
