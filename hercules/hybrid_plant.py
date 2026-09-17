@@ -158,7 +158,6 @@ class HybridPlant:
                     h_dict[component_name]["power_min_next"] = -temp_max
                     h_dict[component_name]["power_max_next"] = -temp_min
 
-
         # Update the plant level outputs
         self.compute_plant_level_outputs(h_dict)
 
